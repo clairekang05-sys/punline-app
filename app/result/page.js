@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { db } from "../lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
+
+// ✅ 빌드(프리렌더) 단계에서 /result를 미리 만들지 않게 강제
+export const dynamic = "force-dynamic";
 
 const CRIMSON = "#A00034";
 
@@ -34,7 +37,8 @@ function clampText(s, n = 40) {
   return t.length > n ? t.slice(0, n) + "…" : t;
 }
 
-export default function ResultPage() {
+/** ✅ 실제 로직은 여기 */
+function ResultInner() {
   const router = useRouter();
   const sp = useSearchParams();
 
@@ -46,20 +50,8 @@ export default function ResultPage() {
   const [errMsg, setErrMsg] = useState("");
   const [docData, setDocData] = useState(null);
 
-  // ✅ 스샷 한 장 모드
   const [posterMode, setPosterMode] = useState(false);
-  // ✅ 이유 펼치기 토글(문항별)
   const [openReason, setOpenReason] = useState({});
-
-  const shareText =
-    "뻔라인 중 한 분이 뻔후/뻔선과 @ku_ak7 계정을 태그하여 인스타그램 스토리로 결과지를 공유해주세요! 추첨 이벤트에 자동 응모 됩니다";
-
-  const notices = [
-    "인스타그램 스토리 공유 시, 뻔선/뻔후 + @ku_ak7 태그를 모두 포함해 주세요.",
-    "뻔선-뻔후 간의 학년이 하나 이하의 격차를 가지도록 지원 부탁드립니다. (ex:24학번 뻔선 - 26학번 뻔후 응모x)",
-    "비공개 계정은 추첨 확인이 어려우니 꼭 공개계정으로 업로드 해주세요.",
-    "부적절한 표현/개인정보 노출(실명, 연락처 등)은 업로드 전 반드시 가려주세요.",
-  ];
 
   const lineDocId = useMemo(() => {
     if (!s || !j) return "";
@@ -72,10 +64,12 @@ export default function ResultPage() {
 
   useEffect(() => {
     if (!lineDocId) return;
+
     setLoading(true);
     setErrMsg("");
 
     const ref = doc(db, "lines", lineDocId);
+
     const unsub = onSnapshot(
       ref,
       (snap) => {
@@ -136,6 +130,16 @@ export default function ResultPage() {
     return { sameCnt, total, label: "티키타카형 케미", emoji: "😈" };
   }, [seniorAnswers, juniorAnswers]);
 
+  const shareText =
+    "뻔라인 중 한 분이 뻔후/뻔선과 @ku_ak7 계정을 태그하여 인스타그램 스토리로 결과지를 공유해주세요! 추첨 이벤트에 자동 응모 됩니다";
+
+  const notices = [
+    "인스타그램 스토리 공유 시, 뻔선/뻔후 + @ku_ak7 태그를 모두 포함해 주세요.",
+    "뻔선-뻔후 간의 학년이 하나 이하의 격차를 가지도록 지원 부탁드립니다. (ex:24학번 뻔선 - 26학번 뻔후 응모x)",
+    "비공개 계정은 추첨 확인이 어려우니 꼭 공개계정으로 업로드 해주세요.",
+    "부적절한 표현/개인정보 노출(실명, 연락처 등)은 업로드 전 반드시 가려주세요.",
+  ];
+
   return (
     <div className="flex min-h-screen items-start justify-center bg-white p-6">
       <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
@@ -160,7 +164,6 @@ export default function ResultPage() {
             </div>
           </div>
 
-          {/* 배지들 */}
           <div className="mt-4 flex flex-wrap gap-2">
             <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white">
               {chemScore.emoji} {chemScore.label}
@@ -169,22 +172,22 @@ export default function ResultPage() {
               🧷 동일 선택 {chemScore.sameCnt}/{chemScore.total}
             </span>
             <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white">
-              🎉 뻔선 ig : ___________  뻔후 ig : _____________
+              🎉 뻔선 ig : ___________ 뻔후 ig : _____________
             </span>
           </div>
         </div>
 
         <div className="p-6">
-          {/* 로딩/에러 */}
           {loading ? (
             <div className="rounded-2xl border border-gray-200 p-5 text-sm text-gray-700">
               결과지를 불러오는 중…
             </div>
           ) : errMsg ? (
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">{errMsg}</div>
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+              {errMsg}
+            </div>
           ) : (
             <>
-              {/* ✅ 결과 그리드: 스샷 모드면 2열로 압축 */}
               <div className={`${posterMode ? "grid grid-cols-2 gap-3" : "space-y-4"}`}>
                 {QUESTIONS.map((q) => {
                   const sVal = get(seniorAnswers, `${q.id}.value`, "");
@@ -202,7 +205,6 @@ export default function ResultPage() {
                       </div>
 
                       <div className={`${posterMode ? "mt-2 space-y-2" : "mt-3 space-y-3"}`}>
-                        {/* 선배 */}
                         <div className="rounded-xl border border-gray-200 p-3">
                           <div className="text-[10px] font-semibold" style={{ color: CRIMSON }}>
                             선배
@@ -233,7 +235,6 @@ export default function ResultPage() {
                           ) : null}
                         </div>
 
-                        {/* 후배 */}
                         <div className="rounded-xl border border-gray-200 p-3">
                           <div className="text-[10px] font-semibold" style={{ color: CRIMSON }}>
                             후배
@@ -271,7 +272,6 @@ export default function ResultPage() {
                 })}
               </div>
 
-              {/* 이벤트 안내 */}
               <div className="mt-5 rounded-2xl border border-gray-200 bg-white p-5">
                 <div className="text-sm font-bold" style={{ color: CRIMSON }}>
                   📣 스토리 인증 이벤트
@@ -291,7 +291,6 @@ export default function ResultPage() {
                 </details>
               </div>
 
-              {/* ✅ 버튼: 하단 */}
               <div className="mt-5">
                 <div className="flex gap-2">
                   <button
@@ -325,5 +324,22 @@ export default function ResultPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** ✅ 페이지 export는 Suspense로 감싸서 반환 (빌드에서 프리렌더 충돌 방지) */
+export default function ResultPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-white p-6">
+          <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="text-sm text-gray-700">결과지 불러오는 중…</div>
+          </div>
+        </div>
+      }
+    >
+      <ResultInner />
+    </Suspense>
   );
 }
