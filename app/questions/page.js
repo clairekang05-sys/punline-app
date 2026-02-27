@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { db } from "../lib/firebase";
+import { db } from "../lib/firebase"; // 기존 Firebase 설정 불러오기
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+
+export const dynamic = "force-dynamic";
 
 const CRIMSON = "#A00034";
 
@@ -51,30 +53,30 @@ const QUESTIONS = [
     type: "text",
     title: "7. 제일 좋아하는 영화/드라마는?",
     hint: "제목만 말해주세요",
-    placeholder: "예: 왕과 사는 남자",
+    placeholder: "예: 인터스텔라",
   },
   {
-  id: "kkaet",
-  type: "binary",
-  title: "8. 뻔선/뻔후가 다른 학우의 깻잎을 떼어줘도 된다?",
-  options: ["된다", "안된다"],
-  withReason: true,
-  reasonRequired: true,
-  reasonHint: "40자 내외로 적어주세요",
-  reasonPlaceholder: "예: 질투나요💢",
-  reasonMaxLen: 40,
-},
-{
-  id: "murmur",
-  type: "binary",
-  title: "9. 뻔선/뻔후가 다른 학우와 무르무르에 가면?",
-  options: ["신경이 쓰인다", "안 쓰인다"],
-  withReason: true,
-  reasonRequired: true,
-  reasonHint: "40자 내외로 적어주세요",
-  reasonPlaceholder: "예: 첫 무르무르는 뻔선이랑 가야죠🥹",
-  reasonMaxLen: 40,
-},
+    id: "kkaet",
+    type: "binary",
+    title: "8. 뻔선/뻔후가 다른 학우의 깻잎을 떼어줘도 된다?",
+    options: ["된다", "안된다"],
+    withReason: true,
+    reasonRequired: true,
+    reasonHint: "40자 내외로 적어주세요",
+    reasonPlaceholder: "예: 질투나요💢",
+    reasonMaxLen: 40,
+  },
+  {
+    id: "murmur",
+    type: "binary",
+    title: "9. 뻔선/뻔후가 다른 학우와 무르무르에 가면?",
+    options: ["신경이 쓰인다", "안 쓰인다"],
+    withReason: true,
+    reasonRequired: true,
+    reasonHint: "40자 내외로 적어주세요",
+    reasonPlaceholder: "예: 첫 무르무르는 뻔선이랑 가야죠🥹",
+    reasonMaxLen: 40,
+  },
   {
     id: "msg",
     type: "textLong",
@@ -85,47 +87,43 @@ const QUESTIONS = [
   },
 ];
 
-export default function QuestionsPage() {
+// 1. 실제 로직이 담긴 내부 컴포넌트
+function QuestionsInner() {
   const searchParams = useSearchParams();
-const s = searchParams.get("s") || "";
-const j = searchParams.get("j") || "";
-const role = searchParams.get("role") || "";
-useEffect(() => {
-  if (!s || !j || !role) {
-    window.location.href = "/enter";
-  }
-}, [s, j, role]);
-    const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState({}); // { [id]: { value, reason? } }
+
+  const s = searchParams.get("s") || "";
+  const j = searchParams.get("j") || "";
+  const role = searchParams.get("role") || "";
+
+  useEffect(() => {
+    if (!s || !j || !role) {
+      window.location.href = "/enter";
+    }
+  }, [s, j, role]);
+
+  const [step, setStep] = useState(0);
+  const [answers, setAnswers] = useState({});
 
   const q = QUESTIONS[step];
-
-  const progressText = useMemo(() => {
-    return `${step + 1} / ${QUESTIONS.length}`;
-  }, [step]);
-
-  const currentValue = answers?.[q.id]?.value ?? (q.type === "textLong" ? "" : "");
+  const progressText = useMemo(() => `${step + 1} / ${QUESTIONS.length}`, [step]);
+  const currentValue = answers?.[q.id]?.value ?? "";
   const currentReason = answers?.[q.id]?.reason ?? "";
 
   const canNext = useMemo(() => {
-  const v = String(currentValue ?? "").trim();
-  const r = String(currentReason ?? "").trim();
+    const v = String(currentValue ?? "").trim();
+    const r = String(currentReason ?? "").trim();
 
-  if (q.type === "single" || q.type === "binary") {
-    if (!v) return false;
-
-    if (q.withReason && q.reasonRequired) {
-      if (!r) return false;
-      if (q.reasonMaxLen && r.length > q.reasonMaxLen) return false;
+    if (q.type === "single" || q.type === "binary") {
+      if (!v) return false;
+      if (q.withReason && q.reasonRequired) {
+        if (!r) return false;
+        if (q.reasonMaxLen && r.length > q.reasonMaxLen) return false;
+      }
+      return true;
     }
-    return true;
-  }
-
-  if (q.type === "text") return v.length > 0;
-  if (q.type === "textLong") return v.length > 0;
-
-  return false;
-}, [q, currentValue, currentReason]);
+    if (q.type === "text" || q.type === "textLong") return v.length > 0;
+    return false;
+  }, [q, currentValue, currentReason]);
 
   const setValue = (val) => {
     setAnswers((prev) => ({
@@ -143,49 +141,49 @@ useEffect(() => {
 
   const goPrev = () => {
     if (step === 0) return;
-    setStep((s) => s - 1);
+    setStep((x) => x - 1);
   };
 
   const goNext = () => {
     if (!canNext) return;
-    if (step < QUESTIONS.length - 1) setStep((s) => s + 1);
+    if (step < QUESTIONS.length - 1) setStep((x) => x + 1);
   };
 
+  // ✅ [수정완료] 기존의 Firebase 저장 로직을 그대로 가져왔습니다.
   const onFinish = async () => {
-  if (!s || !j || !role) {
-    alert("라인 정보가 없습니다. /enter부터 다시 접속해주세요.");
-    window.location.href = "/enter";
-    return;
-  }
+    if (!s || !j || !role) {
+      alert("라인 정보가 없습니다. /enter부터 다시 접속해주세요.");
+      window.location.href = "/enter";
+      return;
+    }
 
-  const docId = `${s}_${j}`; // Firestore 문서 ID
+    const docId = `${s}_${j}`;
 
-  try {
-    await setDoc(
-      doc(db, "lines", docId),
-      {
-        s,
-        j,
-        updatedAt: serverTimestamp(),
-        [role]: {
-          answers,
-          submittedAt: serverTimestamp(),
+    try {
+      await setDoc(
+        doc(db, "lines", docId),
+        {
+          s,
+          j,
+          updatedAt: serverTimestamp(),
+          [role]: {
+            answers,
+            submittedAt: serverTimestamp(),
+          },
         },
-      },
-      { merge: true }
-    );
+        { merge: true }
+      );
 
-    window.location.href = `/wait?s=${encodeURIComponent(s)}&j=${encodeURIComponent(j)}&role=${encodeURIComponent(role)}`;
-  } catch (e) {
-    console.error(e);
-    alert("저장 실패! 콘솔 확인해줘.");
-  }
-};
+      window.location.href = `/wait?s=${encodeURIComponent(s)}&j=${encodeURIComponent(j)}&role=${encodeURIComponent(role)}`;
+    } catch (e) {
+      console.error(e);
+      alert("저장 실패! 콘솔 확인해줘.");
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-white p-6">
       <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        {/* 헤더 */}
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: CRIMSON }}>
@@ -193,22 +191,17 @@ useEffect(() => {
             </h1>
             <div className="mt-2 h-1 w-12 rounded-full" style={{ background: CRIMSON }} />
             <p className="mt-2 text-xs text-gray-500">
-  라인: {s}/{j} · 내 역할: {role === "senior" ? "선배" : "후배"}
-</p>
-            <p className="mt-3 text-xs text-gray-500">
-              한 문제씩 넘어가요. 제출 후에는 수정 불가(예정).
+              라인: {s}/{j} · 내 역할: {role === "senior" ? "선배" : "후배"}
             </p>
+            <p className="mt-3 text-xs text-gray-500">한 문제씩 넘어가요. 제출 후에는 수정 불가(예정).</p>
           </div>
-
           <div className="text-xs text-gray-400">{progressText}</div>
         </div>
 
-        {/* 질문 카드 */}
         <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-5">
           <div className="text-base font-bold text-gray-900">{q.title}</div>
           {"hint" in q ? <div className="mt-2 text-xs text-gray-500">{q.hint}</div> : null}
 
-          {/* 객관식 */}
           {(q.type === "single" || q.type === "binary") && (
             <div className="mt-4 grid grid-cols-1 gap-3">
               {q.options.map((opt) => {
@@ -232,7 +225,6 @@ useEffect(() => {
             </div>
           )}
 
-          {/* 이유 입력(8번만) */}
           {q.withReason && (
             <div className="mt-4">
               <div className="mb-2 text-sm font-semibold text-gray-700">이유</div>
@@ -246,7 +238,6 @@ useEffect(() => {
             </div>
           )}
 
-          {/* 짧은 서술형 */}
           {q.type === "text" && (
             <div className="mt-4">
               <input
@@ -258,7 +249,6 @@ useEffect(() => {
             </div>
           )}
 
-          {/* 40자 서술형 */}
           {q.type === "textLong" && (
             <div className="mt-4">
               <textarea
@@ -279,7 +269,6 @@ useEffect(() => {
           )}
         </div>
 
-        {/* 하단 버튼 */}
         <div className="mt-6 flex gap-3">
           <button
             type="button"
@@ -314,5 +303,22 @@ useEffect(() => {
         </div>
       </div>
     </div>
+  );
+}
+
+// 2. Vercel 배포 오류를 방지하기 위해 Suspense로 감싸는 부모 컴포넌트
+export default function QuestionsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-white p-6">
+          <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="text-sm text-gray-700">페이지 준비 중…</div>
+          </div>
+        </div>
+      }
+    >
+      <QuestionsInner />
+    </Suspense>
   );
 }
