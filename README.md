@@ -1,36 +1,114 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# 🐯 뻔라인 N문N답 웹서비스
 
-## Getting Started
+## 프로젝트 소개
 
-First, run the development server:
+뻔라인 N문N답 웹서비스는 학과 내 뻔선, 뻔후가 서로를 알아갈 수 있도록 제작한 실시간 매칭 서비스입니다.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+선배와 후배가 동일한 고유번호를 입력한 뒤 각각 10개의 질문에 답변하면, 시스템이 두 사람의 응답을 비교·분석하여 결과 페이지를 자동으로 생성합니다.
+
+사용자는 상대방의 답변과 자신의 답변을 한눈에 비교할 수 있으며, 케미 점수와 공유용 결과 화면을 통해 프로그램 참여 경험을 더욱 재미있게 즐길 수 있습니다.
+
+---
+
+### 주요 기능
+
+1. 고유번호 기반 매칭
+
+* 참가자별 고유번호 입력
+* 선배(Senior) / 후배(Junior) 구분
+* 동일 번호 사용자 자동 연결
+
+2. 질문 응답 시스템
+
+* 총 10개 문항 제공
+* 객관식 및 주관식 응답 지원
+* 단계별 진행 UI 제공
+
+3. 실시간 응답 감지
+
+* Firebase Firestore 실시간 리스너 활용
+* 상대방 응답 완료 여부 자동 확인
+* 응답 완료 시 결과 페이지로 자동 이동
+
+4. 결과 비교 페이지
+
+* 선배·후배 답변 비교
+* 응답 일치 여부 분석
+* 케미 점수 계산
+* 이유 보기 / 접기 기능 제공
+
+5. 모바일 최적화 UI
+
+* 모바일 환경 중심 설계
+* 결과 화면 공유를 고려한 카드형 레이아웃 적용
+
+---
+
+사용자 흐름
+
+```text
+/enter
+ ↓
+고유번호 입력
+ ↓
+질문 응답
+ ↓
+상대방 응답 대기
+ ↓
+결과 비교 페이지
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## 기술 스택
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Frontend
 
-## Learn More
+* Next.js
+* React
+* Tailwind CSS
 
-To learn more about Next.js, take a look at the following resources:
+### Backend & Database
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+* Firebase Firestore
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Deployment
 
-## Deploy on Vercel
+* GitHub
+* Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 데이터 구조
+
+```text
+lines
+ └── {senior}_{junior}
+      ├── senior.answers
+      └── junior.answers
+```
+
+고유번호를 기반으로 문서를 생성하고, 선배와 후배의 응답을 분리 저장하여 실시간 비교가 가능하도록 설계하였다.
+
+---
+
+## 구현 과정에서 학습한 내용
+
+* Next.js App Router 구조 이해
+* CSR과 SSR의 차이 학습
+* Firebase Firestore 실시간 데이터 처리
+* 실시간 매칭 서비스 구조 설계
+* Vercel을 활용한 웹 서비스 배포 경험
+* 모바일 환경을 고려한 UX 설계
+
+---
+
+## 프로젝트 결과
+
+* 실시간 매칭 웹서비스 구현 완료
+* Firebase 기반 데이터 저장 및 동기화 구현
+* 결과 비교 페이지 자동 생성 기능 구현
+* Vercel 배포 완료
+* 모바일 환경 테스트 완료
+
+본 프로젝트를 통해 사용자 간 실시간 상호작용 서비스 설계와 웹 서비스 배포 과정을 경험할 수 있었다.
